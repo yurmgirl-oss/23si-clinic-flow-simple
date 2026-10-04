@@ -280,7 +280,7 @@ rf.onsubmit = async e => {
       return;
     }
 
-    rr.textContent = "재진 접수가 완료되었습니다.";
+   rr.textContent = `재진 접수 완료 · 대기번호: ${d.queueNumber}번`;
     rf.reset();
 
   } catch(e){

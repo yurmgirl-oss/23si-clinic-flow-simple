@@ -133,7 +133,7 @@ async function getWaiting(env) {
       LEFT JOIN clinic_revisit_intakes r
         ON r.id = w.revisit_intake_id
       WHERE w.checked_in_at::date = CURRENT_DATE
-        AND w.status = '대기중'
+        
       ORDER BY w.queue_number
     `);
 

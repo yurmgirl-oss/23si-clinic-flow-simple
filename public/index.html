@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>23시 하단오거리 동물병원</title>
+<style>
+body{font-family:Arial,"Noto Sans KR",sans-serif;background:#f4f7f5;margin:0;color:#17342a}.wrap{max-width:760px;margin:30px auto;padding:20px}.card{background:white;border-radius:18px;padding:24px;box-shadow:0 4px 18px #0001;margin-bottom:18px}h1{margin:0 0 6px;font-size:26px}h2{font-size:19px;margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{font-size:13px;font-weight:bold}input,select,textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ccd8d2;border-radius:9px;margin-top:5px;font-size:15px}textarea{min-height:90px}button{width:100%;padding:14px;border:0;border-radius:10px;background:#198754;color:white;font-size:16px;font-weight:bold;cursor:pointer;margin-top:14px}.result{margin-top:14px;padding:15px;border-radius:10px;background:#edf8f1;display:none}.full{grid-column:1/-1}.muted{color:#6b7c74;font-size:13px}@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body><div class="wrap">
+<div class="card"><h1>23시 하단오거리 동물병원</h1><div class="muted">간단 접수 테스트 화면</div></div>
+<div class="card"><h2>신규 접수</h2>
+<form id="form"><div class="grid">
+<label>보호자명<input name="guardianName" required></label><label>전화번호<input name="guardianPhone" required></label>
+<label>동물명<input name="petName" required></label><label>동물종<input name="petType" placeholder="강아지 / 고양이 / 기타" required></label>
+<label>품종<input name="breed" required></label><label>성별<input name="gender" placeholder="남 / 여" required></label>
+<label>나이<input name="age" type="number" min="0" required></label><label>체중(kg)<input name="weightKg" type="number" step="0.01" required></label>
+<label class="full">주소<input name="address"></label><label class="full">내원 사유<textarea name="reason" required></textarea></label>
+<label class="full">추가 메모<textarea name="memo"></textarea></label>
+</div>
+<label style="display:block;margin-top:14px"><input type="checkbox" name="privacyConsent" style="width:auto"> 개인정보 수집 동의</label>
+<label style="display:block;margin-top:8px"><input type="checkbox" name="safetyConsent" style="width:auto"> 진료 안전사항 동의</label>
+<button>접수하기</button></form><div id="result" class="result"></div></div>
+<div class="card"><h2>오늘 대기자</h2><button type="button" onclick="loadWaiting()">대기자 새로고침</button><div id="waiting" style="margin-top:12px"></div></div>
+</div>
+<script>
+const f=document.querySelector('#form'),r=document.querySelector('#result');
+f.onsubmit=async e=>{e.preventDefault();const x=Object.fromEntries(new FormData(f));x.age=Number(x.age);x.weightKg=Number(x.weightKg);x.privacyConsent=f.privacyConsent.checked;x.safetyConsent=f.safetyConsent.checked;x.neutered=false;try{const a=await fetch('/api/intakes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});const d=await a.json();if(!a.ok)throw Error(d.error||'접수 실패');r.style.display='block';r.innerHTML='<b>접수 완료</b><br>대기번호: <strong>'+d.queueNumber+'</strong>';f.reset();loadWaiting()}catch(err){r.style.display='block';r.innerHTML='<b>오류</b><br>'+err.message}};
+async function loadWaiting(){try{const a=await fetch('/api/waiting');const d=await a.json();document.querySelector('#waiting').innerHTML=d.length?d.map(x=>`<div style="padding:10px;border-bottom:1px solid #eee"><b>${x.queue_number}번</b> ${x.pet_name} · ${x.guardian_name}<br><span class="muted">${x.reason}</span></div>`).join(''):'현재 대기자가 없습니다.'}catch(e){document.querySelector('#waiting').textContent=e.message}}
+loadWaiting();
+</script></body></html>

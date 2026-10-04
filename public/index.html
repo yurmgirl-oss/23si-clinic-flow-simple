@@ -281,7 +281,8 @@ rf.onsubmit = async e => {
     }
 
    rr.textContent = `재진 접수 완료 · 대기번호: ${d.queueNumber}번`;
-    rf.reset();
+rf.reset();
+loadWaiting();
 
   } catch(e){
     rr.textContent = "재진 접수 중 오류가 발생했습니다.";
@@ -350,7 +351,6 @@ async function changeWaitingStatus(id){
   }catch(e){
     alert("상태 변경 중 오류가 발생했습니다.");
   }
-}
 }
 
 loadWaiting();

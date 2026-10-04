@@ -80,8 +80,8 @@ async function createRevisit(request, env) {
 
       const q = await client.query(
         `SELECT COALESCE(MAX(queue_number),0)+1 AS queue_number
-         FROM waiting_list
-         WHERE status='대기중'`
+FROM waiting_list
+WHERE checked_in_at::date = CURRENT_DATE`
       );
 
       const queueNumber = Number(q.rows[0].queue_number);

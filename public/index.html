@@ -295,18 +295,62 @@ async function loadWaiting(){
     const d = await a.json();
 
     document.querySelector("#waiting").innerHTML =
-      d.map(x =>
-        `<div style="padding:8px 0;border-bottom:1px solid #eee;">
-          <b>${x.queue_number}번</b>
-          ${x.pet_name} · ${x.guardian_name}
-          <span style="color:#718078;"> · ${x.reason || ""}</span>
-        </div>`
-      ).join("");
+      d.map(x => `
+        <div style="padding:10px 0;border-bottom:1px solid #eee;">
+          <div>
+            <b>${x.queue_number}번</b>
+            ${x.pet_name} · ${x.guardian_name}
+            <span style="color:#718078;"> · ${x.reason || ""}</span>
+          </div>
+
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+            <select id="status-${x.id}" style="width:auto;margin:0;padding:7px;">
+              <option value="대기중" ${x.status === "대기중" ? "selected" : ""}>대기중</option>
+              <option value="진료중" ${x.status === "진료중" ? "selected" : ""}>진료중</option>
+              <option value="완료" ${x.status === "완료" ? "selected" : ""}>완료</option>
+            </select>
+
+            <button type="button" onclick="changeWaitingStatus(${x.id})">
+              상태변경
+            </button>
+          </div>
+        </div>
+      `).join("");
 
   }catch(e){
     document.querySelector("#waiting").textContent =
       "대기자 정보를 불러오지 못했습니다.";
   }
+}
+
+
+async function changeWaitingStatus(id){
+  const select = document.querySelector("#status-" + id);
+  const status = select.value;
+
+  try{
+    const a = await fetch("/api/waiting/status", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        id,
+        status
+      })
+    });
+
+    const d = await a.json();
+
+    if(!a.ok){
+      alert(d.error || "상태 변경에 실패했습니다.");
+      return;
+    }
+
+    loadWaiting();
+
+  }catch(e){
+    alert("상태 변경 중 오류가 발생했습니다.");
+  }
+}
 }
 
 loadWaiting();

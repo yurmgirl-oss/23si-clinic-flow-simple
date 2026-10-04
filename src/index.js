@@ -50,29 +50,96 @@ async function createIntake(request, env) {
 
 async function createRevisit(request, env) {
   const b = await request.json();
-  if (!b.guardianPhone || !b.petName || !b.reason) return json({ error: "전화번호, 동물명, 진료내용은 필수입니다." }, 400);
+
+  if (!b.guardianPhone || !b.petName || !b.reason) {
+    return json({ error: "전화번호, 동물명, 진료내용은 필수입니다." }, 400);
+  }
+
   const result = await db(env, async (client) => {
-    const r = await client.query(
-      `INSERT INTO clinic_revisit_intakes (guardian_phone,pet_name,reason,planned_visit_date,planned_visit_period,additional_treatments,status,call_message,memo)
-       VALUES ($1,$2,$3,$4,$5,$6,'접수완료',$7,$8) RETURNING id, public_token`,
-      [b.guardianPhone, b.petName, b.reason, b.plannedVisitDate || null, b.plannedVisitPeriod || null,
-       Array.isArray(b.additionalTreatments) ? b.additionalTreatments : [], b.callMessage || null, b.memo || null]
-    );
-    return r.rows[0];
+    await client.query("BEGIN");
+
+    try {
+      const r = await client.query(
+        `INSERT INTO clinic_revisit_intakes
+        (guardian_phone,pet_name,reason,planned_visit_date,planned_visit_period,additional_treatments,status,call_message,memo)
+        VALUES ($1,$2,$3,$4,$5,$6,'대기중',$7,$8)
+        RETURNING id, public_token`,
+        [
+          b.guardianPhone,
+          b.petName,
+          b.reason,
+          b.plannedVisitDate || null,
+          b.plannedVisitPeriod || null,
+          Array.isArray(b.additionalTreatments) ? b.additionalTreatments : [],
+          b.callMessage || null,
+          b.memo || null
+        ]
+      );
+
+      const revisitId = r.rows[0].id;
+
+      const q = await client.query(
+        `SELECT COALESCE(MAX(queue_number),0)+1 AS queue_number
+         FROM waiting_list
+         WHERE status='대기중'`
+      );
+
+      const queueNumber = Number(q.rows[0].queue_number);
+
+      await client.query(
+        `INSERT INTO waiting_list
+        (intake_id,revisit_intake_id,queue_number,status)
+        VALUES (NULL,$1,$2,'대기중')`,
+        [revisitId, queueNumber]
+      );
+
+      await client.query("COMMIT");
+
+      return {
+        revisitId,
+        publicToken: r.rows[0].public_token,
+        queueNumber
+      };
+
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   });
-  return json({ success: true, ...result });
+
+  return json({
+    success: true,
+    ...result
+  });
 }
 
 async function getWaiting(env) {
   const rows = await db(env, async (client) => {
     const r = await client.query(`
-      SELECT w.id,w.queue_number,w.status,w.checked_in_at,
-             i.pet_name,i.pet_type,i.breed,i.guardian_name,i.guardian_phone,i.reason
-      FROM waiting_list w JOIN clinic_intakes i ON i.id=w.intake_id
-      WHERE w.checked_in_at::date=CURRENT_DATE AND w.status='대기중'
-      ORDER BY w.queue_number`);
+      SELECT
+        w.id,
+        w.queue_number,
+        w.status,
+        w.checked_in_at,
+        COALESCE(i.pet_name, r.pet_name) AS pet_name,
+        COALESCE(i.pet_type, '재진') AS pet_type,
+        COALESCE(i.breed, '') AS breed,
+        COALESCE(i.guardian_name, '') AS guardian_name,
+        COALESCE(i.guardian_phone, r.guardian_phone) AS guardian_phone,
+        COALESCE(i.reason, r.reason) AS reason
+      FROM waiting_list w
+      LEFT JOIN clinic_intakes i
+        ON i.id = w.intake_id
+      LEFT JOIN clinic_revisit_intakes r
+        ON r.id = w.revisit_intake_id
+      WHERE w.checked_in_at::date = CURRENT_DATE
+        AND w.status = '대기중'
+      ORDER BY w.queue_number
+    `);
+
     return r.rows;
   });
+
   return json(rows);
 }
 
